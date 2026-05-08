@@ -450,6 +450,7 @@ describe("POST /api/auth/forgot-password", () => {
   it("should send reset email successfully for verified user", async () => {
     User.findOne.mockResolvedValue({
       id: 1, email: "test@gmail.com", name: "Test User",
+      password: "$2b$12$fakeHashedPasswordForTest",
       isVerified: true,
       update: jest.fn().mockResolvedValue(true),
     });
@@ -500,6 +501,7 @@ describe("POST /api/auth/forgot-password", () => {
     const updateMock = jest.fn().mockResolvedValue(true);
     User.findOne.mockResolvedValue({
       id: 1, email: "test@gmail.com", name: "User",
+      password: "$2b$12$fakeHashedPasswordForTest",
       isVerified: true,
       update: updateMock,
     });
