@@ -32,6 +32,7 @@ jest.mock("../../src/config/redis", () => ({
 jest.mock("../../src/services/email.service", () => ({
   sendVerificationEmail:  jest.fn().mockResolvedValue(true),
   sendPasswordResetEmail: jest.fn().mockResolvedValue(true),
+  sendAccountLockedEmail: jest.fn().mockResolvedValue(true),
 }));
 
 jest.mock("../../src/models/User", () => ({
@@ -240,6 +241,8 @@ describe("POST /api/auth/login", () => {
       id: 1, name: "Test User", email: "test@gmail.com",
       password: hashedPassword, role: "user",
       isVerified: true,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
       update: jest.fn().mockResolvedValue(true),
     });
 
@@ -285,6 +288,8 @@ describe("POST /api/auth/login", () => {
     User.findOne.mockResolvedValue({
       id: 1, email: "test@gmail.com", password: hashedPassword, role: "user",
       isVerified: true,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
       update: jest.fn(),
     });
 
@@ -301,6 +306,157 @@ describe("POST /api/auth/login", () => {
       .send({ email: "test@gmail.com" });
 
     expect(res.statusCode).toBe(400);
+  });
+
+  // ──────────────────────────────────────────────────────────────────────
+  // PHẦN ACCOUNT LOCKOUT TESTS
+  // ──────────────────────────────────────────────────────────────────────
+
+  it("should increment failedLoginAttempts on wrong password (Phần 8)", async () => {
+    // User đã sai 2 lần trước đó → lần này sai → tăng lên 3
+    const hashedPassword = await bcrypt.hash(VALID_PASSWORD, 12);
+    const updateMock = jest.fn().mockResolvedValue(true);
+
+    User.findOne.mockResolvedValue({
+      id: 1, email: "test@gmail.com", password: hashedPassword,
+      role: "user", isVerified: true,
+      failedLoginAttempts: 2,    // đã sai 2 lần
+      lockedUntil: null,
+      update: updateMock,
+    });
+
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "test@gmail.com", password: "WrongPass1" });
+
+    expect(res.statusCode).toBe(401);
+    expect(res.body).toHaveProperty("attemptsRemaining", 2); // còn 2 lần (5-3=2)
+
+    // Counter được update lên 3
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ failedLoginAttempts: 3 })
+    );
+  });
+
+  it("should reset failedLoginAttempts to 0 on successful login (Phần 8)", async () => {
+    const hashedPassword = await bcrypt.hash(VALID_PASSWORD, 12);
+    const updateMock = jest.fn().mockResolvedValue(true);
+
+    // User đã sai 3 lần trước đó, giờ login đúng
+    User.findOne.mockResolvedValue({
+      id: 1, name: "Test User", email: "test@gmail.com",
+      password: hashedPassword, role: "user", isVerified: true,
+      failedLoginAttempts: 3,    // đã sai 3 lần
+      lockedUntil: null,
+      update: updateMock,
+    });
+
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "test@gmail.com", password: VALID_PASSWORD });
+
+    expect(res.statusCode).toBe(200);
+
+    // Counter được reset về 0 + clear lockedUntil
+    expect(updateMock).toHaveBeenCalledWith({
+      failedLoginAttempts: 0,
+      lockedUntil:         null,
+    });
+  });
+
+  it("should lock account and send email after 5 failed attempts (Phần 8)", async () => {
+    const hashedPassword = await bcrypt.hash(VALID_PASSWORD, 12);
+    const updateMock = jest.fn().mockResolvedValue(true);
+
+    // User đã sai 4 lần → lần này sai lần 5 → trigger lock
+    User.findOne.mockResolvedValue({
+      id: 1, name: "Test User", email: "test@gmail.com",
+      password: hashedPassword, role: "user", isVerified: true,
+      failedLoginAttempts: 4,    // đã sai 4 lần
+      lockedUntil: null,
+      update: updateMock,
+    });
+
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "test@gmail.com", password: "WrongPass1" });
+
+    // Status 423 Locked, không phải 401
+    expect(res.statusCode).toBe(423);
+    expect(res.body).toHaveProperty("lockedUntil");
+    expect(res.body).toHaveProperty("minutesRemaining", 15);
+    expect(res.body.message).toContain("tạm khoá");
+
+    // Update set failedLoginAttempts = 5 và lockedUntil = future date
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        failedLoginAttempts: 5,
+        lockedUntil:         expect.any(Date),
+      })
+    );
+
+    // Email cảnh báo được gửi
+    expect(emailService.sendAccountLockedEmail).toHaveBeenCalledTimes(1);
+    expect(emailService.sendAccountLockedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to:       "test@gmail.com",
+        userName: "Test User",
+      })
+    );
+  });
+
+  it("should reject login with 423 if account is currently locked (Phần 8)", async () => {
+    const hashedPassword = await bcrypt.hash(VALID_PASSWORD, 12);
+    const futureLockTime = new Date(Date.now() + 10 * 60 * 1000); // còn 10 phút
+
+    User.findOne.mockResolvedValue({
+      id: 1, email: "test@gmail.com", password: hashedPassword,
+      role: "user", isVerified: true,
+      failedLoginAttempts: 5,
+      lockedUntil: futureLockTime,    // đang bị khoá
+      update: jest.fn(),
+    });
+
+    // Login với password ĐÚNG nhưng vẫn bị reject vì đang lock
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "test@gmail.com", password: VALID_PASSWORD });
+
+    expect(res.statusCode).toBe(423);
+    expect(res.body).toHaveProperty("lockedUntil");
+    expect(res.body).toHaveProperty("minutesRemaining");
+    expect(res.body.message).toContain("tạm thời bị khoá");
+
+    // Email KHÔNG được gửi (chỉ gửi khi vừa lock, không phải mỗi lần check)
+    expect(emailService.sendAccountLockedEmail).not.toHaveBeenCalled();
+  });
+
+  it("should allow login after lockout expired (Phần 8)", async () => {
+    const hashedPassword = await bcrypt.hash(VALID_PASSWORD, 12);
+    const pastLockTime = new Date(Date.now() - 60 * 1000); // hết hạn 1 phút trước
+    const updateMock = jest.fn().mockResolvedValue(true);
+
+    User.findOne.mockResolvedValue({
+      id: 1, name: "Test User", email: "test@gmail.com",
+      password: hashedPassword, role: "user", isVerified: true,
+      failedLoginAttempts: 5,
+      lockedUntil: pastLockTime,    // đã hết hạn lock
+      update: updateMock,
+    });
+
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "test@gmail.com", password: VALID_PASSWORD });
+
+    // Login thành công vì lockedUntil < now
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data).toHaveProperty("accessToken");
+
+    // Counter + lockedUntil được reset
+    expect(updateMock).toHaveBeenCalledWith({
+      failedLoginAttempts: 0,
+      lockedUntil:         null,
+    });
   });
 });
 
