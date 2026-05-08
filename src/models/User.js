@@ -124,6 +124,31 @@ const User = sequelize.define(
       unique:       true,
       defaultValue: null,
     },
+
+    // ─── Account Lockout fields  ────────────────────────────────
+
+    /**
+     * Số lần login sai password liên tiếp.
+     * - Reset về 0 khi login thành công
+     * - Đạt MAX_LOGIN_ATTEMPTS (5) → tài khoản bị lock
+     */
+    failedLoginAttempts: {
+      type:         DataTypes.INTEGER,
+      allowNull:    false,
+      defaultValue: 0,
+    },
+
+    /**
+     * Thời điểm hết khoá tài khoản.
+     * - NULL: Tài khoản không bị khoá
+     * - Date trong tương lai: Đang bị khoá đến thời điểm này
+     * - Date trong quá khứ: Đã hết khoá (không cần clear, login thành công sẽ reset)
+     */
+    lockedUntil: {
+      type:         DataTypes.DATE,
+      allowNull:    true,
+      defaultValue: null,
+    },
   },
   {
     tableName:  "users",
@@ -136,6 +161,8 @@ const User = sequelize.define(
       { fields: ["passwordResetToken"],  name: "idx_users_password_reset_token" },
       // Index googleId (Phần 6) để Google login query nhanh
       { fields: ["googleId"],            name: "idx_users_googleId" },
+      // Index lockedUntil (Phần 8) để query account locked nhanh
+      { fields: ["lockedUntil"],         name: "idx_users_locked_until" },
     ],
   }
 );
