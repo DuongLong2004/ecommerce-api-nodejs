@@ -33,3 +33,11 @@ Thumbs.db
 logs/
 
 schema.sql
+
+
+data.sql
+data_clean.sql
+data_utf8.sql
+data_utf8_clean.sql
+schema.sql
+*.sql
