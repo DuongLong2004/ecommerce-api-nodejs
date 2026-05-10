@@ -8,25 +8,49 @@ const logger     = require("../utils/logger");
 /**
  * Nodemailer transporter cho Gmail SMTP.
  *
- * Configuration:
- *   - service: "gmail" → Nodemailer tự config host/port cho Gmail
- *   - auth.user: Gmail email từ .env
- *   - auth.pass: App Password 16 ký tự (KHÔNG dùng Gmail password thường)
+ * Có 2 cách config tùy môi trường:
  *
- * Free tier limits:
+ *   1. PRODUCTION (Railway/Heroku/AWS): explicit host + port 465 + SSL
+ *      → Nhiều cloud provider chặn port 587 (STARTTLS) nhưng cho qua 465 (SSL).
+ *      → Railway nằm trong nhóm này, đã có log "Connection timeout" port 587.
+ *
+ *   2. DEVELOPMENT (local): service: "gmail" cho gọn
+ *      → Nodemailer tự handle host/port, mạng nhà thường không chặn port nào.
+ *
+ * Free tier Gmail:
  *   - 500 emails/day
  *   - Đủ cho dev + demo + portfolio
  *
  * @security KHÔNG hardcode credentials. Đọc từ process.env.
  *           File .env phải có trong .gitignore (đã có).
  */
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,     // VD: yourname@gmail.com
-    pass: process.env.EMAIL_PASSWORD, // VD: abcdefghijklmnop (16 ký tự, KHÔNG dấu cách)
-  },
-});
+const isProduction = process.env.NODE_ENV === "production";
+
+const transporter = nodemailer.createTransport(
+  isProduction
+    ? {
+        // Production: explicit SSL trên port 465
+        host:   "smtp.gmail.com",
+        port:   465,
+        secure: true, // true = dùng SSL (port 465); false = STARTTLS (port 587, có thể bị block)
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASSWORD,
+        },
+        // Tăng timeout cho cloud network (latency cao hơn local)
+        connectionTimeout: 10000, // 10s
+        greetingTimeout:   10000,
+        socketTimeout:     15000,
+      }
+    : {
+        // Development: gọn nhẹ, Nodemailer tự handle
+        service: "gmail",
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASSWORD,
+        },
+      }
+);
 
 // ════════════════════════════════════════════════════════════════════════════
 // HEALTH CHECK
