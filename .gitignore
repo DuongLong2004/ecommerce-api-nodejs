@@ -31,3 +31,5 @@ Thumbs.db
 
 # PM2 logs
 logs/
+
+schema.sql
