@@ -7,7 +7,11 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "jest --detectOpenHandles --runInBand",
-    "test:coverage": "jest --coverage --detectOpenHandles --runInBand"
+    "test:coverage": "jest --coverage --detectOpenHandles --runInBand",
+    "lint": "eslint \"src/**/*.js\"",
+    "lint:fix": "eslint \"src/**/*.js\" --fix",
+    "format": "prettier --write \"src/**/*.js\" \"*.json\" \"*.md\"",
+    "format:check": "prettier --check \"src/**/*.js\""
   },
   "keywords": [],
   "author": "",
@@ -25,6 +29,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.1",
+    "file-type": "^19.6.0",
     "google-auth-library": "^10.6.2",
     "helmet": "^8.1.0",
     "joi": "^18.0.2",
@@ -41,8 +46,12 @@
     "xss": "^1.0.15"
   },
   "devDependencies": {
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-node": "^11.1.0",
     "jest": "^30.3.0",
     "nodemon": "^3.1.11",
+    "prettier": "^3.8.3",
     "supertest": "^7.2.2"
   }
 }
