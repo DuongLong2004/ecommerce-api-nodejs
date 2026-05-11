@@ -1,4 +1,4 @@
-const { client: redis } = require("../config/redis");
+const { client: redis, scanKeys } = require("../config/redis");
 const logger = require("../utils/logger");
 
 const DEFAULT_TTL = 60 * 5;
@@ -49,7 +49,7 @@ const clearCache = async (urlPrefix) => {
 
   try {
     const pattern = `cache:${urlPrefix}*`;
-    const keys    = await redis.keys(pattern);
+    const keys    = await scanKeys(pattern);
 
     if (keys.length > 0) {
       await redis.del(keys);

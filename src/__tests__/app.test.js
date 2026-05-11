@@ -14,6 +14,8 @@ jest.mock("../../src/config/redis", () => ({
     keys:    jest.fn().mockResolvedValue([]),
     del:     jest.fn().mockResolvedValue(true),
   },
+  // SCAN helper (production-safe alternative to KEYS)
+  scanKeys: jest.fn().mockResolvedValue([]),
   // Multi-device session API
   createSession:       jest.fn().mockResolvedValue(true),
   getSession:          jest.fn().mockResolvedValue(null),
