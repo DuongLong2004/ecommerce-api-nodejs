@@ -6,12 +6,12 @@ A production-grade REST API for a phone & laptop e-commerce platform, built with
 [![Express](https://img.shields.io/badge/Express-5-000000?logo=express&logoColor=white)](https://expressjs.com)
 [![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com)
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)](https://redis.io)
-[![Tests](https://img.shields.io/badge/tests-97%2F97_passing-brightgreen)](https://github.com/DuongLong2004/backend-project/actions)
+[![Tests](https://img.shields.io/badge/tests-97%2F97_passing-brightgreen)](https://github.com/DuongLong2004/ecommerce-api-nodejs/actions)
 [![License](https://img.shields.io/badge/license-ISC-blue)](LICENSE)
 
 > **🔗 Repositories**
 >
-> - **Backend** (this repo): https://github.com/DuongLong2004/backend-project
+> - **Backend** (this repo): https://github.com/DuongLong2004/ecommerce-api-nodejs
 > - **Frontend**: https://github.com/DuongLong2004/ecommerce-frontend
 
 ---
@@ -482,7 +482,7 @@ order: [["createdAt", "DESC"]]
 ### 1. Clone & install
 
 ```bash
-git clone https://github.com/DuongLong2004/backend-project.git
+git clone https://github.com/DuongLong2004/ecommerce-api-nodejs.git
 cd backend-project
 npm install
 ```
@@ -902,7 +902,7 @@ ISC
 **Duong Long** ([@DuongLong2004](https://github.com/DuongLong2004))
 
 - GitHub: https://github.com/DuongLong2004
-- Backend repo: https://github.com/DuongLong2004/backend-project
+- Backend repo: https://github.com/DuongLong2004/ecommerce-api-nodejs
 - Frontend repo: https://github.com/DuongLong2004/ecommerce-frontend
 
 ---
